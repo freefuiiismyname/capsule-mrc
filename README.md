@@ -1,5 +1,5 @@
 # capsule-mrc
-基于capsule的观点型阅读理解模型,应用于[观点型阅读理解](https://challenger.ai/competition/oqmrc2018)。单模不加trick、不用外部词向量，得分约74.2.
+基于capsule的观点型阅读理解模型,应用于[观点型阅读理解](https://challenger.ai/competition/oqmrc2018)。单模不加trick、不用外部词向量，直接使用本模型的得分约74.2。
 本模型认为观点型阅读理解的任务目标是聚类，即从passage和query中提取信息，以候选答案为中心进行capsule动态路由聚类；若某个候选答案得到的信息越多，则该答案模长越长，作为答案的概率越高。
 
 # 数据样例
