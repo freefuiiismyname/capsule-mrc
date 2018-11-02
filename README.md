@@ -13,7 +13,7 @@
 }
 
 # 模型图
-![pic1](https://github.com/freefuiiismyname/capsule-mrc/master/capsuleNet-mrc/1.png)
+![pic1](https://github.com/freefuiiismyname/capsule-mrc/blob/master/capsuleNet-mrc/1.png)
 
 # 模型思路
 **步骤1、问题编码**
