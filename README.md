@@ -6,7 +6,7 @@
 {
 “query_id”:1,
 “query”:“维生c可以长期吃吗”,
-“url”: “https://wenwen.sogou.com/z/q748559425.htm”,
+“url”: “xxx”,
 “passage”: “每天吃的维生素的量没有超过推荐量的话是没有太大问题的。”,
 “alternatives”:”可以|不可以|无法确定”,
 “answer”:“可以”
