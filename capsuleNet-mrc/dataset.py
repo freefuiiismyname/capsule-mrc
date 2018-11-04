@@ -93,7 +93,19 @@ class BRCDataset(object):
                         sample['label_answer'] = 1
                     else:
                         sample['label_answer'] = 2
-
+                else:
+                    alternatives = sample['alternatives'].split('|')
+                    for alternative in alternatives:
+                        score = 0
+                        if '无法确定' in alternative or '无法确认' in alternative or '无法确的' in alternative:
+                            score += 3
+                        elif '不' in alternative or '没' in alternative:
+                            score += 2
+                        scores.append(score)
+                    if sum(scores) < 5:
+                        sample['choose_type'] = 1.0
+                    else:
+                        sample['choose_type'] = 0.0
                 data_set.append(sample)
 
         print('passage超长过滤:', filter_long_para, 'query问题过滤:', filter_long_query + filter_zero_query)
