@@ -59,9 +59,9 @@ class BRCDataset(object):
                 if len(sample['segmented_query']) == 0:
                     filter_zero_query += 1
                     continue
+                scores = []
                 if 'answer' in sample:
                     fake_label = sample['label_answer']
-                    scores = []
                     alternatives = sample['alternatives'].split('|')
                     for alternative in alternatives:
                         score = 0
