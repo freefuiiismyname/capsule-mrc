@@ -381,8 +381,6 @@ class RCModel(object):
             batches += batch['raw_data']
             probs.append(alternatives_probs)
         probs = np.concatenate(probs, axis=0)
-        probs = np.squeeze(probs, axis=1)
-        probs = np.squeeze(probs, axis=1)
 
         for sample, prob in zip(batches, probs):
             best_answer_index = np.argmax(prob)
