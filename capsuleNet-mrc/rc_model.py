@@ -10,6 +10,7 @@ from layers.caps_layer import routing
 from layers.caps_layer import softmax
 from layers.caps_layer import concat_capsules
 from layers.match_layer import AttentionFlowMatchLayer
+from layers.match_layer import SelfMatchingLayer
 import keras.backend as K
 import numpy as np
 import random
@@ -119,7 +120,7 @@ class RCModel(object):
             self.a_t_emb = tf.nn.embedding_lookup(self.word_embeddings, self.a_t)
 
             self.q_mask = tf.expand_dims(tf.cast(tf.logical_not(tf.cast(self.q, tf.bool)), tf.float32) * -9999, -1)
-            self.p_mask = tf.expand_dims(tf.cast(tf.logical_not(tf.cast(self.p, tf.bool)), tf.float32) * -9999, -1)
+            self.p_mask = tf.cast(tf.logical_not(tf.cast(self.p, tf.bool)), tf.float32) * -9999
             self.a_f_mask = tf.expand_dims(tf.cast(tf.logical_not(tf.cast(self.a_f, tf.bool)), tf.float32) * -9999, -1)
             self.a_s_mask = tf.expand_dims(tf.cast(tf.logical_not(tf.cast(self.a_s, tf.bool)), tf.float32) * -9999, -1)
             self.a_t_mask = tf.expand_dims(tf.cast(tf.logical_not(tf.cast(self.a_t, tf.bool)), tf.float32) * -9999, -1)
@@ -160,7 +161,11 @@ class RCModel(object):
         """
         # 聚类信息fuse
         with tf.variable_scope('p-routing-fusion'):
-            self.routing_p_encodes, _ = rnn('bi-lstm', self.tp_emb, self.p_length, self.hidden_size)
+            routing_p_encodes, _ = rnn('bi-lstm', self.tp_emb, self.p_length, self.hidden_size)
+        with tf.variable_scope('self-match'):
+            match_layer = SelfMatchingLayer(self.hidden_size)
+            tem_encodes = tf.identity(routing_p_encodes)
+            self.rou_p_encodes, _ = match_layer.match(routing_p_encodes, tem_encodes, self.p_length, self.p_mask)
 
     def _conv(self):
         """
@@ -175,7 +180,7 @@ class RCModel(object):
                     filter_shape = [filter_size, self.hidden_size * 2, 1, 300]
                     W = tf.Variable(tf.truncated_normal(filter_shape, stddev=0.1), name="W")
                     b = tf.Variable(tf.constant(0.1, shape=[300]), name="b")
-                    conv = tf.nn.conv2d(tf.expand_dims(self.routing_p_encodes, -1), W, strides=[1, 1, 1, 1],
+                    conv = tf.nn.conv2d(tf.expand_dims(self.rou_p_encodes, -1), W, strides=[1, 1, 1, 1],
                                         padding="VALID", name="conv")
                     h = tf.nn.relu(tf.nn.bias_add(conv, b), name="relu")
                     pooled = tf.reduce_max(h, 1)
@@ -191,31 +196,19 @@ class RCModel(object):
             cap_gate = tf.reshape(tf.layers.dense(tf.concat(
                 [tf.reshape(alt_cap, [-1, 6 * self.hidden_size]), tf.expand_dims(self.choose_type, 1),
                  cast(self.p_length), cast(self.q_length)], -1), 1, activation=tf.nn.sigmoid), [-1, 1, 1, 1, 1])
-            self.ref_cap = alt_cap * cap_gate + cls_cap * (1 - cap_gate)
-            # 聚类
+            self.ref_cap = tf.reshape(alt_cap * cap_gate + cls_cap * (1 - cap_gate), [-1, 300, 3])
+            # 去噪
             with tf.variable_scope('r-routing'):
-                self.ar_r_capsule = routing(self.h_pool, self.ref_cap, self.hidden_size * 2, 10)
+                memorty_cap = tf.Variable(tf.truncated_normal([1, 1, self.hidden_size * 2, 1, 3]))
+                self.ar_r_capsule = routing(self.h_pool, memorty_cap, self.hidden_size * 2, 10)
 
     def _decode(self):
         """
         解码顶层capsules，根据其模长softmax作为答案的概率
         """
-        # 根据下层capsule构建候选答案capsule
-        with tf.variable_scope('concat-capsule'):
-            fc_weights = tf.Variable(tf.truncated_normal([1, 300, 3, 3]))
-            fc_bias = tf.Variable(tf.truncated_normal([1, 300, 3]))
-            fc_capsules = tf.expand_dims(self.ar_r_capsule, 3) * fc_weights
-            self.concat_alter_capsule = tf.reduce_sum(fc_capsules, 2) + fc_bias
-        # 候选答案间信息交互，用以缩放
-        with tf.variable_scope('gated-capsule'):
-            fc_gate = tf.reshape(tf.layers.dense(
-                tf.concat([tf.reshape(self.concat_alter_capsule, [-1, 900]), tf.expand_dims(self.choose_type, 1),
-                                      cast(self.p_length), cast(self.q_length)], -1), 3, activation=tf.nn.sigmoid),
-                                 [-1, 1, 3])
-            self.final_alter_capsule = self.concat_alter_capsule * fc_gate
-
-            capsule_lengths = tf.sqrt(tf.reduce_sum(tf.square(self.final_alter_capsule), 1))
-            self.alternatives_probs = softmax(capsule_lengths, 1)
+        capsule_lengths = tf.squeeze(
+            tf.matmul(tf.reshape(tf.split(self.ar_r_capsule, 3, axis=2)[0], [-1, 1, 300]), self.ref_cap), 1)
+        self.alternatives_probs = softmax(capsule_lengths, 1)
 
     def _compute_loss(self):
         """
