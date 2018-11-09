@@ -13,7 +13,7 @@ from nltk.translate.bleu_score import sentence_bleu
 
 class BRCDataset(object):
     '''
-    该模块实现加载和使用百度阅读理解数据集的api
+    该模块实现加载和使用数据集的api
     '''
 
     def __init__(self, max_p_len, max_q_len,
