@@ -60,8 +60,8 @@ def routing(conv_capsules, alter_capsule, dim_size, conv_nums):
                 s_j = tf.multiply(c_ij, u_hat)
                 s_j = reduce_sum(s_j, axis=1, keepdims=True)
                 s_j = reduce_sum(s_j, axis=3, keepdims=True)
-                v_j = squash(s_j)
-                v_j = tf.reshape(v_j, [-1,dim_size,3])
+                # v_j = squash(s_j)
+                v_j = tf.reshape(s_j, [-1,dim_size,3])
             else:  # Inner iterations, do not apply backpropagation
                 s_j = tf.multiply(c_ij, u_hat)
                 s_j = reduce_sum(s_j, axis=1, keepdims=True)
